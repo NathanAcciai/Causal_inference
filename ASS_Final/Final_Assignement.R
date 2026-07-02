@@ -165,9 +165,47 @@ plot_density_outcome(dati_completi)
 
 mean_treated <- mean(data$job_seek[data$z == 1], na.rm = TRUE)
 mean_control <- mean(data$job_seek[data$z == 0], na.rm = TRUE)
-ITT <- mean_treated - mean_control
-ITT
+ITT_Y <- mean_treated - mean_control
+ITT_Y
 
+ITT_W <- with(data, mean(data$w[data$z == 1]))
+
+# CACE
+CACE <- ITT_Y / ITT_W
+CACE
+
+#now we go to estimate the standard error via delta method
+Y_1 <- data$job_seek[data$z == 1]
+Y_0 <- data$job_seek[data$z == 0]
+
+W_1 <- data$w[data$z == 1]
+W_0 <- data$w[data$z == 0]
+
+n_1 <- length(Y_1)
+n_0 <- length(Y_0)
+
+#calculate the variance for the group
+
+var_ITT_Y <- var(Y_1)/n_1 + var(Y_0)/n_0
+var_ITT_W <- var(W_1)/n_1 
+
+#calculate the covariance
+cov_1 <- cov(Y_1, W_1)/n_1
+cov_2 <- cov(Y_0, W_0)/n_0
+Cov_ITT <- cov_1 + cov_2
+
+Var_CACE <- (var_ITT_Y / ITT_W^2) + ITT_Y^2 / ITT_W^4 * var_ITT_W - 2 * ITT_Y/ ITT_W^3 * Cov_ITT
+SE_CACE <- sqrt(Var_CACE)
+SE_CACE
+#calcolus of the 1-alpha confidence interval of 95% of confidence
+
+alpha <- 0.05
+z <- qnorm(1 - alpha/2)
+
+CI_lower <- CACE - z * SE_CACE
+CI_upper <- CACE + z * SE_CACE
+
+c(CI_lower, CI_upper)
 
 
 
