@@ -207,6 +207,127 @@ CI_upper <- CACE + z * SE_CACE
 
 c(CI_lower, CI_upper)
 
+# ex 10) rember we are one-side compliance and the always-taken are 0
+
+
+moment_estimator <- function(y, w, z){
+  
+  #proportion of type of compliance
+  p_w1_z1 <- mean(w[z==1] == 1)
+  # is useless beacuse we are in one side. 
+  p_w1_z0 <- mean(w[z==0] == 1)
+  
+  pi_nt<- 1 - p_w1_z1
+  pi_c <- p_w1_z1
+  
+  #mean in the group
+  ym_nt <- mean(y[z==1 & w==0])
+  #mean complers that take the treatent and mu_1c beacusa pi_at =0
+  mu_1c <- mean(y[z==1 & w==1])
+  
+  y_z0_w0 <- mean(y[z == 0])
+  
+  mu_0c <- (y_z0_w0 - pi_nt * ym_nt) / pi_c
+  
+  cace <- mu_1c -mu_0c
+  
+  itt <- mean(y[z == 1]) - mean(y[z == 0])
+  
+  c(pi_c = pi_c, pi_nt = pi_nt,
+    ym_nt = ym_nt,
+    mu_1c = mu_1c, mu_0c = mu_0c,
+    CACE = cace, ITT = itt)
+}
+
+point_est <- moment_estimator(data$job_seek, data$w, data$z)
+print(round(point_est, 4))
+
+#implment the boostrap function
+n_boot_values <- c(2000, 10000, 50000)
+N<- length(data$job_seek)
+
+boot_mat <- matrix(NA, nrow = n_boot, ncol = length(point_est))
+colnames(boot_mat) <- names(point_est)
+
+bootstrap_func <- function(n_boot, n, boot_mat,z,w,y){
+  for(b in 1:n_boot){
+    idx <- sample(1:n , n, replace = TRUE)
+    zb <- z[idx]; wb <- w[idx]; yb <- y[idx]
+    
+    #heare we put some conditions for don't have a problem in the code
+    ok <- length(unique(zb)) == 2 &&
+      sum(zb == 1 & wb == 0) > 0 &&   
+      sum(zb == 1 & wb == 1) > 0 &&   
+      mean(wb[zb == 1] == 1) > 0      
+    
+    if (isTRUE(ok)) {
+      boot_mat[b, ] <- moment_estimator(yb, wb, zb)
+    }
+  }
+  return(boot_mat)
+}
+calculate_bootstrap_for_differnt_number <-function(n_boot_values){
+  boot_results <- vector("list", length(n_boot_values))
+  names(boot_results) <- paste0("B_", n_boot_values)
+  
+  i <- 1
+  for (nb in n_boot_values) {
+    
+    boot_results[[i]] <- bootstrap_func(
+      n_boot = nb,
+      n = N,
+      boot_mat = matrix(NA, nrow = nb, ncol = length(point_est)),
+      z = data$z,
+      w = data$w,
+      y = data$job_seek
+    )
+    
+    i <- i + 1
+  }
+  return(boot_results)
+}
+bootstrap_res <- calculate_bootstrap_for_differnt_number(n_boot_values)
+
+for (i in seq_along(bootstrap_res)) {
+  
+  se_boot <- apply(bootstrap_res[[i]], 2, sd, na.rm = TRUE)
+  
+  results <- data.frame(
+    Estimate = round(point_est, 4),
+    SE_boot  = round(se_boot, 4)
+  )
+  results$CI_lower <- round(results$Estimate - 1.96 * results$SE_boot, 4)
+  results$CI_upper <- round(results$Estimate + 1.96 * results$SE_boot, 4)
+  
+  cat("\n============================\n")
+  cat("Bootstrap set:", n_boot_values[i], "\n")
+  cat("============================\n")
+  
+  print(results)
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
